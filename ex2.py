@@ -2,101 +2,177 @@ import numpy as np
 import sys
 import random
 
+
+########## KNN ALGORITHM ##################
 def find_closest_k(i, k):
     closest = np.empty((0, 2))
 
     for j in range(SIZE_OF_TRAIN):
         dist = np.linalg.norm(test_x[i] - train_x[j])
-        ##dist = np.sqrt(np.power(test_x[i][0] - train_y[j][0], 2) + np.power(test_x[i][1] - train_y[j][1], 2) + np.power(test_x[i][2] - train_y[j][2], 2) +
-                       ##np.power(test_x[i][3] - train_y[j][3], 2) + np.power(test_x[i][4] - train_y[j][4], 2))
 
         if np.size(closest, 0) == k:
-            #furthest, index = None, None
             if dist < closest[k-1][0]:
                 closest[k-1][0], closest[k-1][1] = dist, j
-            """for d in reversed(range(k)):
-                if dist < closest[d][0]:
-                    closest[d][0], closest[d][1] = dist, j
-                    break
-                    if furthest is not None and most_close[d][0] > furthest:
-                        furthest, index = most_close[d][0], d
-                    elif furthest is None:
-                        furthest, index = most_close[d][0], d
-            if furthest is not None:
-                most_close[d][0], most_close[d][1] = dist, j"""
-
         else:
             closest = np.concatenate((closest, np.array([[dist, j]])))
-
+        # sorting the current closest sample
         closest = closest[closest[:, 0].argsort()]
     return closest
 
 
-def test_knn():
+def predict_test_knn():
     k = 9
     labels = np.empty((SIZE_OF_TEST, 1))
     for i in range(SIZE_OF_TEST):
+        # get the closest train sample to the specific test sample
         k_closest = find_closest_k(i, k)
-        #print(f"------- {i} --------")
-        #print(k_closest)
 
+        # get the y value of the closest train sample
         classes = np.empty(k, dtype=np.int64)
         for j in range(k):
             classes[j] = int(train_y[int(k_closest[j, 1])])
         labels[i] = np.bincount(classes).argmax()
     return labels
+###########################################
 
 
+def train_perceptron():
+
+    w = np.zeros((NUM_OF_LABELS, NUM_OF_FEATURE))
+    final_w = None
+    current_average = 0
+    eta = 0.001
+    epochs = 150
+    for v in range(10):
+        train_x_after_val, train_y_after_val, validation_x, validation_y, val_size = create_train_and_validation(SIZE_OF_TRAIN)
+        for t in range(epochs):
+            for x, y in zip(train_x_after_val, train_y_after_val):
+                w_dot_x = w.dot(x)
+                index_max = np.argmax(w_dot_x)
+                if index_max != y:
+                    w[y] = w[y] + eta * x
+                    w[index_max] = w[index_max] - eta * x
+
+            average_validation = validation(w, validation_x, validation_y, val_size)
+            #print(average_validation)
+            if average_validation > current_average:
+                final_w = w
+                current_average = average_validation
+    #print(current_average)
+    return final_w
+    #return w
+
+
+def predict_test_perceptron(w):
+    labels = np.empty((SIZE_OF_TEST, 1))
+    # for every sample in the test set check the predict y
+    for index, x in enumerate(test_x_norm):
+        w_dot_x = w.dot(x)
+        index_max = np.argmax(w_dot_x)
+        labels[index] = index_max
+    # return list of label for the test
+    return labels
+
+
+def validation(w, validation_x, validation_y, val_size):
+    labels = np.empty((val_size, 1))
+    # check the correction of the predict on the validation set
+    for index, x in enumerate(validation_x):
+        w_dot_x = w.dot(x)
+        index_max = np.argmax(w_dot_x)
+        labels[index] = index_max
+    # finding the average of correction
+    sum_right = 0
+    for a, b in zip(labels, validation_y):
+        if a == b:
+            sum_right = sum_right + 1
+    return (sum_right / val_size) * 100
+
+
+def create_train_and_validation(train_size):
+    # the size of validation set from train set
+    val_size = int(train_size / 5)
+    validation_x, validation_y = np.empty((val_size, NUM_OF_FEATURE)), np.empty((val_size, 1))
+    # getting randomly sample from the train set
+    a = random.sample(range(240), val_size)
+    a.sort()
+    # crate validation set
+    for index in range(val_size):
+        validation_x[index], validation_y[index] = train_x_norm[a[index]], train_y[a[index]]
+    # removing the validation set from the train set
+    for l in reversed(range(val_size)):
+        train_x_after_val = np.delete(train_x_norm, a[l], axis=0)
+        train_y_after_val = np.delete(train_y, a[l])
+    return train_x_after_val, train_y_after_val, validation_x, validation_y, val_size
 
 
 ##############################
 # from files
 train_x_fname, train_y_fname, test_x_fname, out_fname = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 train_x = np.loadtxt(train_x_fname, delimiter=',')
-train_y = np.loadtxt(train_y_fname, delimiter=',')
+train_y = np.loadtxt(train_y_fname, delimiter=',', dtype=np.int64)
 test_x = np.loadtxt(test_x_fname, delimiter=',')
+labels_name = np.sort(np.unique(train_y))
 # sizes
 SIZE_OF_TRAIN = np.size(train_x, 0)
 SIZE_OF_TEST = np.size(test_x, 0)
 NUM_OF_FEATURE = np.size(train_x, 1)
+NUM_OF_LABELS = np.size(labels_name)
 ##############################
 
+# knn test
+labels_knn = predict_test_knn()
 
-########## VALIDATION KNN ##################
 
+# normalization
+train_x_norm = np.empty((SIZE_OF_TRAIN, NUM_OF_FEATURE))
+test_x_norm = np.empty((SIZE_OF_TEST, NUM_OF_FEATURE))
+for i in range(NUM_OF_FEATURE):
+    old_max, old_min = train_x.max(axis=0)[i], train_x.min(axis=0)[i]
+    new_min, new_max = -10, 10
 
-"""VAL_SIZE = 24
+    for j in range(SIZE_OF_TRAIN):
+        train_x_norm[j][i] = ((train_x[j][i] - old_min) / (old_max - old_min))*(new_max - new_min) + new_min
+    for j in range(SIZE_OF_TEST):
+        test_x_norm[j][i] = ((test_x[j][i] - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min
 
-validation_x, validation_y = np.empty((VAL_SIZE, 5)), np.empty((VAL_SIZE, 1))
+""""########## VALIDATION KNN ##################
+VAL_SIZE = int(SIZE_OF_TRAIN / 5)
+validation_x, validation_y = np.empty((VAL_SIZE, NUM_OF_FEATURE)), np.empty((VAL_SIZE, 1))
 a = random.sample(range(240), VAL_SIZE)
 a.sort()
 for index in range(VAL_SIZE):
-    validation_x[index], validation_y[index] = train_x[a[index]], train_y[a[index]]
-
+    validation_x[index], validation_y[index] = train_x_norm[a[index]], train_y[a[index]]
 for l in reversed(range(VAL_SIZE)):
-    print(a[l])
-    train_x = np.delete(train_x, a[l], axis=0)
+    train_x_norm = np.delete(train_x_norm, a[l], axis=0)
     train_y = np.delete(train_y, a[l])
-
-SIZE_OF_TRAIN = SIZE_OF_TRAIN - VAL_SIZE
-SIZE_OF_TEST = VAL_SIZE
-
-test_x = validation_x"""
+SIZE_OF_TRAIN = SIZE_OF_TRAIN - VAL_SIZE"""
 
 
-#print("hello")
+# perceptron train
+w = train_perceptron()
+labels_perceptron = predict_test_perceptron(w)
 
+"""# average predict knn
+sum_right = 0
+for a, b in zip(labels_knn, validation_y):
+    if a == b:
+        sum_right = sum_right + 1
+#print("knn: " + str((sum_right/SIZE_OF_TEST) * 100) + "%")"""
 
-labels_knn = test_knn()
+"""# average predict perceptron
+sum_right = 0
+for a, b in zip(labels_perceptron, validation_y):
+    if a == b:
+        sum_right = sum_right + 1
+#print("perceptron: " + str((sum_right/VAL_SIZE) * 100) + "%")"""
 
-"""for i in range(VAL_SIZE):
-    print(str(labels_knn[i]) + "      " + str(validation_y[i]))"""
 
 f = open(out_fname, "w")
 
-for w in range(SIZE_OF_TEST):
-    knn_yhat = int(labels_knn[w])
-    #print(g)
-    f.write(f"knn: {knn_yhat}, perceptron: {0}, svm: {0}, pa: {0}\n")
+for s in range(SIZE_OF_TEST):
+    knn_yhat = int(labels_knn[s])
+    perceptron_yhat = int(labels_perceptron[s])
+    f.write(f"knn: {knn_yhat}, perceptron: {perceptron_yhat}, svm: {0}, pa: {0}\n")
 
 f.close()
