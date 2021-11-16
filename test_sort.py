@@ -4,12 +4,17 @@ import numpy as np
 #a = random.sample(range(240), 24)
 #print(a)
 
-a = np.arange(12).reshape(3, 4)
+"""a = np.arange(12).reshape(3, 4)
 print(a)
 
 a = np.delete(a, 1, 0)
-print(a)
+print(a)"""
 
+arr = np.array([1,3,6])
+arr2 = np.array([7,4,3])
+print(arr)
+arr = arr + arr2
+print(arr)
 
 #arr = np.array([[50, 49, 2], [0, 1, 5]])
 
