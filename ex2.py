@@ -1,6 +1,5 @@
 import numpy as np
 import sys
-import random
 
 
 ########## KNN ALGORITHM ##################
@@ -36,47 +35,28 @@ def predict_test_knn():
 ###########################################
 
 
-class KFold:
-
-    def __init__(self, k, train_x_input, train_y_input):
-        self.k = k
-        self.train_x_norm_split = np.split(train_x_input, k)
-        self.train_y_split = np.split(train_y_input, k)
-
-    def get_train_valid_by_i(self, m):
-        train_x_without_m = np.empty((0, NUM_OF_FEATURE))
-        train_y_without_m = np.empty((0,), dtype=np.int64)
-        for i in range(self.k):
-            if i != m:
-                train_x_without_m= np.concatenate((train_x_without_m, self.train_x_norm_split[i]))
-                train_y_without_m = np.concatenate((train_y_without_m, self.train_y_split[i]))
-
-        return train_x_without_m, train_y_without_m, self.train_x_norm_split[m], self.train_y_split[m]
-
-
 ########## PERCEPTRON ALGORITHM ##################
 def train_perceptron():
-
+    # creating matrix of wth and add 1 for bias
     w = np.zeros((NUM_OF_LABELS, NUM_OF_FEATURE+1))
-    eta = 0.001
+    eta = 0.1
     epochs = 15
-    size_k_fold = 10
     final_w = None
     current_average = 0
-    #sum_average_k_fold = 0
 
-    # shuffle the train set
-    p = np.random.permutation(len(train_x_norm))
-    train_x_sh, train_y_sh = train_x_norm[p], train_y[p]
-
-    # k-fold cross-validation
-    k_fold = KFold(size_k_fold, train_x_sh, train_y_sh)
-
-    part_of_k = np.random.randint(size_k_fold)
-    train_x_without_m_part, train_y_without_m_part, validation_x, validation_y = k_fold.get_train_valid_by_i(part_of_k)
+    #train_x_after_spl, train_y_after_spl, validation_x, validation_y, val_size = split_train_and_valid(SIZE_OF_TRAIN)
 
     for t in range(epochs):
-        for x, y in zip(train_x_without_m_part, train_y_without_m_part):
+        if t == 5:
+            eta = 0.01
+        elif t == 10:
+            eta = 0.001
+        # shuffle the train set
+        p = np.random.permutation(len(train_x_norm))
+        train_x_sh, train_y_sh = train_x_norm[p], train_y[p]
+
+        # one epoch of perceptron algorithm
+        for x, y in zip(train_x_sh, train_y_sh):
             x = np.append(x, [1])
             w_dot_x = w.dot(x)
             index_max = np.argmax(w_dot_x)
@@ -84,46 +64,37 @@ def train_perceptron():
                 w[y] = w[y] + eta * x
                 w[index_max] = w[index_max] - eta * x
 
-        # find
-        average_validation = validation(w, validation_x, validation_y, int(SIZE_OF_TRAIN / size_k_fold))
-        # print(f"end {t} epoch valid: " + str(average_validation))
+        """average_validation = validation(w, validation_x, validation_y, val_size)
         if average_validation > current_average:
             # print(average_validation)
             final_w = w
-            current_average = average_validation
+            current_average = average_validation"""
 
-    """sum_average_k_fold = sum_average_k_fold + validation(w, validation_x, validation_y, int(SIZE_OF_TRAIN / size_k_fold))
-    print("end epochs valid: " + str(validation(w, validation_x, validation_y, int(SIZE_OF_TRAIN / size_k_fold))))
-    print("__________________________________")"""
-
-    #print(sum_average_k_fold / size_k_fold)
-    #print(current_average)
-    return final_w
+    return w
 ###########################################
 
 
+########## PA ALGORITHM ##################
 def train_pa():
     # creating matrix of wth and add 1 for bias
     w = np.zeros((NUM_OF_LABELS, NUM_OF_FEATURE + 1))
     epochs = 15
-    size_k_fold = 10
     final_w = None
     current_average = 0
 
-    # shuffle the train set
-    p = np.random.permutation(len(train_x_norm))
-    train_x_sh, train_y_sh = train_x_norm[p], train_y[p]
+    #train_x_after_spl, train_y_after_spl, validation_x, validation_y = split_train_and_valid(SIZE_OF_TRAIN, 0.2)
 
-    # k-fold cross-validation
-    k_fold = KFold(size_k_fold, train_x_sh, train_y_sh)
 
-    part_of_k = np.random.randint(size_k_fold)
-    train_x_without_m_part, train_y_without_m_part, validation_x, validation_y = k_fold.get_train_valid_by_i(part_of_k)
 
     for t in range(epochs):
+
+        # shuffle the train set
+        p = np.random.permutation(len(train_x_norm))
+        train_x_sh, train_y_sh = train_x_norm[p], train_y[p]
+
         # for each pair (x,y) in train set
         for x, y in zip(train_x_sh, train_y_sh):
-            # append for bias
+            # appending for bias
             x = np.append(x, [1])
             # evaluating w*x and find the max wth
             w_dot_x = w.dot(x)
@@ -136,26 +107,40 @@ def train_pa():
             w[y] = w[y] + tau * x
             w[index_max] = w[index_max] - tau * x
 
-        # find
-        average_validation = validation(w, validation_x, validation_y, int(SIZE_OF_TRAIN / size_k_fold))
-        # print(f"end {t} epoch valid: " + str(average_validation))
-        if average_validation > current_average:
-            # print(average_validation)
+        #average_validation = validation(w, validation_x, validation_y, np.size(validation_y, 0))
+        #print(f"epochs {t}: " + str(average_validation))
+        """if average_validation > current_average:
+            print(average_validation)
             final_w = w
-            current_average = average_validation
+            current_average = average_validation"""
 
-    return final_w
+    return w
 
 
+########## SVM ALGORITHM ##################
 def train_svm():
     # creating matrix of wth and add 1 for bias
     w = np.zeros((NUM_OF_LABELS, NUM_OF_FEATURE + 1))
-    epochs = 10
-    eta = 0.001
+    epochs = 15
+    eta = 0.1
     gama = 0.3
+    final_w = None
+    current_average = 0
+
+    #train_x_after_spl, train_y_after_spl, validation_x, validation_y = split_train_and_valid(SIZE_OF_TRAIN)
+
     for t in range(epochs):
+        if t == 5:
+            eta = 0.01
+        elif t == 10:
+            eta = 0.001
+
+        # shuffle the train set
+        p = np.random.permutation(len(train_x_norm))
+        train_x_sh, train_y_sh = train_x_norm[p], train_y[p]
+
         # for each pair (x,y) in train set
-        for x, y in zip(train_x_norm, train_y):
+        for x, y in zip(train_x_sh, train_y_sh):
             # append for bias
             x = np.append(x, [1])
             # evaluating w*x and find the max wth
@@ -164,11 +149,20 @@ def train_svm():
             if index_max != y:
                 # getting the w of the right and the wrong labels
                 # calculating tau and updating the wth
-                w[y] = w[y] - eta * (-x + gama * w[y])
-                w[index_max] = w[index_max] + eta * (-x + gama * w[index_max])
+                w[y] = (1 - eta * gama) * w[y] + eta * x
+                w[index_max] = (1 - eta * gama) * w[index_max] - eta * x
                 for i in range(NUM_OF_LABELS):
                     if i != y and i != index_max:
-                        w[i] = w[i] - eta * gama * w[i]
+                        w[i] = (1 - eta * gama) * w[i]
+            else:
+                for i in range(NUM_OF_LABELS):
+                    w[i] = (1 - eta * gama) * w[i]
+
+        """average_validation = validation(w, validation_x, validation_y, val_size)
+        if 100 > average_validation > current_average:
+            final_w = w
+            current_average = average_validation"""
+
     return w
 
 
@@ -200,12 +194,12 @@ def validation(w, validation_x, validation_y, val_size):
     return (sum_right / val_size) * 100
 
 
-"""def create_train_and_validation(train_size):
+def split_train_and_valid(train_size, percent):
     # the size of validation set from train set
-    val_size = int(train_size / 5)
+    val_size = int(train_size * percent)
     validation_x, validation_y = np.empty((val_size, NUM_OF_FEATURE)), np.empty((val_size, 1))
     # getting randomly sample from the train set
-    a = random.sample(range(SIZE_OF_TRAIN), val_size)
+    a = np.random.choice(SIZE_OF_TRAIN, size=val_size, replace=False)
     a.sort()
     # crate validation set
     for index in range(val_size):
@@ -214,7 +208,7 @@ def validation(w, validation_x, validation_y, val_size):
     for l in reversed(range(val_size)):
         train_x_after_val = np.delete(train_x_norm, a[l], axis=0)
         train_y_after_val = np.delete(train_y, a[l])
-    return train_x_after_val, train_y_after_val, validation_x, validation_y, val_size"""
+    return train_x_after_val, train_y_after_val, validation_x, validation_y
 ######################
 
 
@@ -233,41 +227,98 @@ NUM_OF_LABELS = np.size(labels_name)
 ##############################
 
 # min-max normalization
-train_x_norm = np.empty((SIZE_OF_TRAIN, NUM_OF_FEATURE))
+"""train_x_norm = np.empty((SIZE_OF_TRAIN, NUM_OF_FEATURE))
 test_x_norm = np.empty((SIZE_OF_TEST, NUM_OF_FEATURE))
 for i in range(NUM_OF_FEATURE):
     old_max, old_min = train_x.max(axis=0)[i], train_x.min(axis=0)[i]
     new_min, new_max = -5, 5
     train_x_norm[:, i] = ((train_x[:, i] - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min
-    test_x_norm[:, i] = ((test_x[:, i] - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min
+    test_x_norm[:, i] = ((test_x[:, i] - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min"""
 
 # z-score normalization
-"""train_x_norm = np.zeros((SIZE_OF_TRAIN, NUM_OF_FEATURE))
+train_x_norm = np.zeros((SIZE_OF_TRAIN, NUM_OF_FEATURE))
 test_x_norm = np.zeros((SIZE_OF_TEST, NUM_OF_FEATURE))
 for i in range(NUM_OF_FEATURE):
     average = np.average(train_x[:, i])
     stand_dev = np.std(train_x[:, i])
     train_x_norm[:, i] = (train_x[:, i] - average) / stand_dev
-    test_x_norm[:, i] = (test_x[:, i] - average) / stand_dev"""
+    test_x_norm[:, i] = (test_x[:, i] - average) / stand_dev
 
-# knn test
-labels_knn = predict_test_knn()
-# perceptron train and predict
-w = train_perceptron()
-labels_perceptron = predict(w)
-# svm train and predict
-w = train_svm()
-labels_svm = predict(w)
-# pa train and predict
-w = train_pa()
-labels_pa = predict(w)
 
-# writing results
-f = open(out_fname, "w")
-for s in range(SIZE_OF_TEST):
-    knn_yhat = int(labels_knn[s])
-    perceptron_yhat = int(labels_perceptron[s])
-    pa_yhat = int(labels_pa[s])
-    svm_yhat = int(labels_svm[s])
-    f.write(f"knn: {knn_yhat}, perceptron: {perceptron_yhat}, svm: {svm_yhat}, pa: {pa_yhat}\n")
-f.close()
+sum_knn = 0
+sum_perceptron = 0
+sum_svm = 0
+sum_pas_ag = 0
+
+
+for i in range(1):
+
+    # knn test
+    labels_knn = predict_test_knn()
+    # perceptron train and predict
+    w = train_perceptron()
+    labels_perceptron = predict(w)
+    # svm train and predict
+    w = train_svm()
+    labels_svm = predict(w)
+    # pa train and predict
+    w = train_pa()
+    labels_pa = predict(w)
+
+    # writing results
+    """f = open(out_fname, "w")
+    for s in range(SIZE_OF_TEST):
+        knn_yhat = int(labels_knn[s])
+        perceptron_yhat = int(labels_perceptron[s])
+        pa_yhat = int(labels_pa[s])
+        svm_yhat = int(labels_svm[s])
+        f.write(f"knn: {knn_yhat}, perceptron: {perceptron_yhat}, svm: {svm_yhat}, pa: {pa_yhat}\n")
+    f.close()"""
+
+
+    true_labels = np.loadtxt("test_y.txt", delimiter=',')
+
+
+    sum_right = 0
+    for a, b in zip(true_labels, labels_knn):
+        if a == b:
+            sum_right = sum_right + 1
+    knn_p = (sum_right / np.size(true_labels, 0)) * 100
+
+    #print("knn percent right: " + str(knn_p))
+
+    sum_right = 0
+    for a, b in zip(true_labels, labels_perceptron):
+        if a == b:
+            sum_right = sum_right + 1
+    perceptron_p = (sum_right / np.size(true_labels, 0)) * 100
+
+    #print("perceptron percent right: " + str(perceptron_p))
+
+    sum_right = 0
+    for a, b in zip(true_labels, labels_svm):
+        if a == b:
+            sum_right = sum_right + 1
+    svm_p = (sum_right / np.size(true_labels, 0)) * 100
+
+    #print("svm percent right: " + str(svm_p))
+
+    sum_right = 0
+    for a, b in zip(true_labels, labels_pa):
+        if a == b:
+            sum_right = sum_right + 1
+    pa_p = (sum_right / np.size(true_labels, 0)) * 100
+
+    #print("pa percent right: " + str(pa_p))
+
+    sum_knn = sum_knn + knn_p
+    sum_perceptron = sum_perceptron + perceptron_p
+    sum_svm = sum_svm + svm_p
+    sum_pas_ag = sum_pas_ag + pa_p
+
+
+
+print("average knn: " + str(sum_knn / 1))
+print("average perceptron: " + str(sum_perceptron / 1))
+print("average svm: " + str(sum_svm / 1))
+print("average pa: " + str(sum_pas_ag / 1))
